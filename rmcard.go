@@ -1,13 +1,18 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/spratt/deckbuilder/cardlib"
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 )
+
+var typeFlag = flag.Bool("t", false, "If present, parse the arguments as types of cards to remove")
 
 func check(err error) {
 	if err != nil {
@@ -24,7 +29,8 @@ func maybePluralize(s string, n int)string {
 
 func main() {
 	// Figure out what we want to remove
-	toRemove := os.Args[1:]
+	flag.Parse()
+	toRemove := flag.Args()
 	if len(toRemove) == 0 {
 		return
 	}
@@ -37,8 +43,32 @@ func main() {
 	check(err)
 
 	// Remove the specified card(s)
-	fmt.Printf("Removing %d %s\n", len(toRemove), maybePluralize("card", len(toRemove)))
-	for _, cardNumber := range toRemove {
+	var codesToRemove []string
+	if *typeFlag {
+		fmt.Println("Removing the following types:", toRemove)
+		codesToRemove = make([]string, 0)
+		for _, cardTypeToRemove := range toRemove {
+			for key,card := range doneCards {
+				for _, t := range card.Types {
+					if t == cardTypeToRemove {
+						codesToRemove = append(codesToRemove, key)
+					}
+				}
+			}
+		}
+	} else {
+		fmt.Printf("Removing %d %s\n", len(toRemove), maybePluralize("card", len(toRemove)))
+		codesToRemove = toRemove
+	}
+	fmt.Println("Deleting the following cards:", codesToRemove)
+	fmt.Print("Press enter to continue.  Type anything to abort: ")
+	reader := bufio.NewReader(os.Stdin)
+	text, err := reader.ReadString('\n')
+	if err != nil || strings.TrimSpace(text) != "" {
+		return
+	}
+	
+	for _, cardNumber := range codesToRemove {
 		delete(doneCards, cardNumber)
 	}
 

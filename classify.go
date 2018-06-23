@@ -78,7 +78,7 @@ func classify_cards(imgTemplate string, doneCards map[string]cardlib.Card, cards
 		} else {
 			card := classify_card(imgTemplate, cardInput)
 			cardsOutput[code] = card
-			fmt.Print("Hit enter to keep going, or anything else to quit.")
+			fmt.Print("q to quit, enter to continue: ")
 			text, err := reader.ReadString('\n')
 			if err != nil || strings.TrimSpace(text) != "" {
 				break
