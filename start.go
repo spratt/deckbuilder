@@ -74,9 +74,12 @@ func draft(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/draft/withPacks/{packIds}", selectPacks)
-	router.HandleFunc("/draft/session/{sessionId}/side/{sideId}", selectSide)
-	router.HandleFunc("/draft/session/{sessionId}/faction/{factionId}", draft)
+	draftRouter := router.PathPrefix("/draft").Subrouter()
+	draftRouter.HandleFunc("/withPacks/{packIds}", selectPacks)
+	draftRouter.HandleFunc("/session/{sessionId}/side/{sideId}", selectSide)
+	draftRouter.HandleFunc("/session/{sessionId}/faction/{factionId}", draft)
+	router.PathPrefix("/data").Handler(http.StripPrefix("/data/", http.FileServer(http.Dir("data/"))))
+	router.PathPrefix("/").Handler(http.FileServer(http.Dir("static/")))
 	port := ":"
 	if portVar := os.Getenv("PORT"); portVar == "" {
 		port += defaultPort
