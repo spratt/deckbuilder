@@ -12,6 +12,20 @@ const PacksOutputFile = "packs.json"
 const PacksInputFile = "packs_input.json"
 const CardsByPackFile = "cards_by_pack.json"
 
+type Side struct {
+	Name string
+	Code string
+	Description string
+	ImageUrl string
+}
+
+type Faction struct {
+	Name string
+	Code string
+	Description string
+	ImageUrl string
+}
+
 type CardsInput struct {
 	ImageUrlTemplate string                   `json:"imageUrlTemplate"`
 	Data             []map[string]interface{} `json:"data"`

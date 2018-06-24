@@ -11,7 +11,8 @@ import (
 	"strings"
 )
 
-func contentJson(w http.ResponseWriter) {
+func logAndSetContent(w http.ResponseWriter, r *http.Request) {
+	log.Println(*r)
 	w.Header().Set("Content-Type", "application/json")
 }
 
@@ -22,7 +23,7 @@ type SelectPacksResponse struct {
 }
 
 func selectPacks(w http.ResponseWriter, r *http.Request) {
-	contentJson(w)
+	logAndSetContent(w, r)
 	vars := mux.Vars(r)
 	packIds := strings.Split(vars["packIds"], ",")
 	json.NewEncoder(w).Encode(SelectPacksResponse{
@@ -39,7 +40,7 @@ type SelectSideResponse struct {
 }
 
 func selectSide(w http.ResponseWriter, r *http.Request) {
-	contentJson(w)
+	logAndSetContent(w, r)
 	vars := mux.Vars(r)
 	sessionId := vars["sessionId"]
 	sideId := vars["sideId"]
@@ -52,20 +53,17 @@ func selectSide(w http.ResponseWriter, r *http.Request) {
 
 type DraftResponse struct {
 	Session string
-	Side string
 	Faction string
 	Cards []cardlib.Card
 }
 
 func draft(w http.ResponseWriter, r *http.Request) {
-	contentJson(w)
+	logAndSetContent(w, r)
 	vars := mux.Vars(r)
 	sessionId := vars["sessionId"]
-	sideId := vars["sideId"]
 	factionId := vars["factionId"]
 	json.NewEncoder(w).Encode(DraftResponse{
 		Session: sessionId,
-		Side: sideId,
 		Faction: factionId,
 		Cards: []cardlib.Card{}, // TODO
 	})
@@ -73,8 +71,8 @@ func draft(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/packs/{packIds}", selectPacks)
-	router.HandleFunc("/session/{sessionId}/side/{sideId}", selectSide)
-	router.HandleFunc("/session/{sessionId}/side/{sideId}/faction/{factionId}", draft)
+	router.HandleFunc("/draft/withPacks/{packIds}", selectPacks)
+	router.HandleFunc("/draft/session/{sessionId}/side/{sideId}", selectSide)
+	router.HandleFunc("/draft/session/{sessionId}/faction/{factionId}", draft)
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
