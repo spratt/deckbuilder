@@ -8,6 +8,9 @@ import (
 
 const CardsOutputFile = "cards.json"
 const CardsInputFile = "cards_input.json"
+const PacksOutputFile = "packs.json"
+const PacksInputFile = "packs_input.json"
+const CardsByPackFile = "cards_by_pack.json"
 
 type CardsInput struct {
 	ImageUrlTemplate string                   `json:"imageUrlTemplate"`
@@ -22,9 +25,38 @@ type Card struct {
 	Title       string
 	Text        string
 	Side        string
+	Quantity    int
 	Types       []string
 	UnknownKeys []string
 	Details     map[string]string
+}
+
+type CardCodeQuantity struct {
+	Code string
+	Quantity int
+}
+
+type PacksInput struct {
+	Code string `json:"code"`
+	CycleCode string `json:"cycle_code"`
+	DateRelease string `json:"date_release"`
+	Name string `json:"name"`
+	Position float64 `json:"position"`
+	Size float64 `json:"size"`
+	FfgId float64 `json:"ffg_id"`
+}
+
+type PacksContainer struct {
+	Data []PacksInput `json:"data"`
+	Total float64 `json:"total"`
+	Success bool `json:"success"`
+	VersionNumber string `json:"version_number"`
+	LastUpdated string `json:"last_updated"`
+}
+
+type Pack struct {
+	Code string
+	Name string
 }
 
 func PrintLine() {
