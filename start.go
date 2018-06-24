@@ -87,14 +87,15 @@ func selectPacks(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	packIds := strings.Split(vars["packIds"], ",")
 	
-	// Store the cards available from these packs in redis
-	c := pool.Get()
-	defer c.Close()
 	// Build a set of included factions
 	factionSet := make(map[string]bool)
-	for _, packId := range packIds {
-		for _, faction := range factionsByPack[packId] {
-			factionSet[faction] = true
+	for index, packId := range packIds {
+		if factions, hasKey := factionsByPack[packId]; hasKey {
+			for _, faction := range factions {
+				factionSet[faction] = true
+			}
+		} else {
+			packIds = cardlib.Remove(packIds, index)
 		}
 	}
 	factionsRet := []cardlib.Faction{}
@@ -102,9 +103,16 @@ func selectPacks(w http.ResponseWriter, r *http.Request) {
 		factionsRet = append(factionsRet, factions[faction])
 	}
 	
+	// Store the cards available from these packs in redis
+	sessionId := strconv.FormatUint(rand.Uint64(), 10)
+	c := pool.Get()
+	defer c.Close()
+	factionsKey := sessionId + ":factions"
+	c.Do("DEL", factionsKey)
+	
 	// Respond
 	json.NewEncoder(w).Encode(SelectPacksResponse{
-		Session: strconv.FormatUint(rand.Uint64(), 10),
+		Session: sessionId,
 		Packs: packIds,
 		Factions: factionsRet,
 	})
