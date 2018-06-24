@@ -53,6 +53,7 @@ type Card struct {
 
 type CardCodeQuantity struct {
 	Code string
+	Faction string
 	Quantity int
 }
 

@@ -17,6 +17,8 @@ import (
 
 // Configuration
 const defaultPort = "8080"
+const minInfluence = 0
+const maxInfluence = 99
 
 // Shared global data
 var (
@@ -45,6 +47,14 @@ func newPool(url string) *redis.Pool {
     IdleTimeout: 240 * time.Second,
     Dial: func () (redis.Conn, error) { return redis.DialURL(url) },
   }
+}
+
+func AllFactionsKey(sessionId string)string {
+	return sessionId + ":factions"
+}
+
+func FactionKey(sessionId string, faction string)string {
+	return sessionId + ":" + faction
 }
 
 func initializeStructures() {
@@ -82,12 +92,33 @@ type SelectPacksResponse struct {
 	Factions []cardlib.Faction
 }
 
+func rollBackSelectPacks(c redis.Conn, sessionId string) {
+	allFactionsKey := AllFactionsKey(sessionId)
+	for true {
+		faction, err := c.Do("SPOP", allFactionsKey)
+		if err != nil {
+			break
+		}
+		c.Do("DEL", FactionKey(sessionId, faction.(string)))
+	}
+	c.Do("DEL", allFactionsKey)
+}
+
 func selectPacks(w http.ResponseWriter, r *http.Request) {
 	logAndSetContent(w, r)
 	vars := mux.Vars(r)
 	packIds := strings.Split(vars["packIds"], ",")
 	
-	// Build a set of included factions
+	// Connect to redis
+	sessionId := strconv.FormatUint(rand.Uint64(), 10)
+	c := pool.Get()
+	defer c.Close()
+
+	// Delete existing factions (if any)
+	allFactionsKey := AllFactionsKey(sessionId)
+	c.Do("DEL", allFactionsKey)
+	
+	// Build a set of included factions, store in redis
 	factionSet := make(map[string]bool)
 	for index, packId := range packIds {
 		if factions, hasKey := factionsByPack[packId]; hasKey {
@@ -96,19 +127,31 @@ func selectPacks(w http.ResponseWriter, r *http.Request) {
 			}
 		} else {
 			packIds = cardlib.Remove(packIds, index)
+			continue
 		}
 	}
 	factionsRet := []cardlib.Faction{}
 	for faction, _ := range factionSet {
+		c.Do("SADD", allFactionsKey, faction)
+		c.Do("DEL", FactionKey(sessionId, faction))
 		factionsRet = append(factionsRet, factions[faction])
 	}
 	
-	// Store the cards available from these packs in redis
-	sessionId := strconv.FormatUint(rand.Uint64(), 10)
-	c := pool.Get()
-	defer c.Close()
-	factionsKey := sessionId + ":factions"
-	c.Do("DEL", factionsKey)
+	// Store the included cards by faction in redis
+	for _, packId := range packIds {
+		if cards, hasKey := cardsByPack[packId]; hasKey {
+			for _, cardCodeQuantity := range cards {
+				ccqBytes, err := json.Marshal(cardCodeQuantity)
+				if err != nil {
+					rollBackSelectPacks(c, sessionId)
+					log.Println("error while parsing card quantities", err)
+					http.Error(w, "error while parsing card quantities", http.StatusInternalServerError)
+					return
+				}
+				c.Do("SADD", FactionKey(sessionId, cardCodeQuantity.Faction), ccqBytes)
+			}
+		}
+	}
 	
 	// Respond
 	json.NewEncoder(w).Encode(SelectPacksResponse{
@@ -118,10 +161,75 @@ func selectPacks(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Get identities
+type GetIdentitiesResponse struct {
+	Session string
+	Faction string
+	Identities []cardlib.Card
+}
+
+func getIdentities(w http.ResponseWriter, r *http.Request) {
+	logAndSetContent(w, r)
+	vars := mux.Vars(r)
+	sessionId := vars["sessionId"]
+	factionId := vars["factionId"]
+	
+	// Connect to redis
+	c := pool.Get()
+	defer c.Close()
+
+	// Validate input
+	factionsLen, err := c.Do("SCARD", AllFactionsKey(sessionId))
+	if err != nil || factionsLen == 0 {
+		log.Println("sessionId not found", err)
+		http.Error(w, "session not found", http.StatusNotFound)
+		return
+	}
+	isMember, err := c.Do("SISMEMBER", AllFactionsKey(sessionId), factionId)
+	if err != nil || isMember == false {
+		log.Println("factionId not found", err)
+		http.Error(w, "faction not found", http.StatusNotFound)
+		return
+	}
+
+	// Find identities by faction
+	var identities []cardlib.Card
+	cardsForFactionJson, err := c.Do("SMEMBERS", FactionKey(sessionId, factionId))
+	if err != nil {
+		log.Println("error retrieving members for factionId", factionId, err)
+		http.Error(w, "faction not found", http.StatusNotFound)
+		return
+	}
+	for _, cardForFactionJson := range cardsForFactionJson.([]interface{}) {
+		var cardCodeQuantity cardlib.CardCodeQuantity
+		err = json.Unmarshal(cardForFactionJson.([]byte), &cardCodeQuantity)
+		if err != nil {
+			log.Println("error parsing cardsForFactionJson", cardsForFactionJson, err)
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+		if card, hasKey := cards[cardCodeQuantity.Code]; hasKey {
+			for _, t := range card.Types {
+				if t == "identity" {
+					identities = append(identities, card)
+				}
+			}
+		}
+	}
+
+	// Respond
+	json.NewEncoder(w).Encode(GetIdentitiesResponse{
+		Session: sessionId,
+		Faction: factionId,
+		Identities: identities,
+	})
+}
+
 // Draft
 type DraftResponse struct {
 	Session string
 	Faction string
+	Influence string
 	Cards []cardlib.Card
 }
 
@@ -130,11 +238,53 @@ func draft(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	sessionId := vars["sessionId"]
 	factionId := vars["factionId"]
+	influenceStr := vars["influence"]
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("Error reading body", err)
+		http.Error(w, "can't read body", http.StatusBadRequest)
+		return
+	}
+	
+	// Connect to redis
+	c := pool.Get()
+	defer c.Close()
+
+	// Validate input
+	factionsLen, err := c.Do("SCARD", AllFactionsKey(sessionId))
+	if err != nil || factionsLen == 0 {
+		log.Println("sessionId not found", err)
+		http.Error(w, "sessionId not found", http.StatusNotFound)
+		return
+	}
+	isMember, err := c.Do("SISMEMBER", AllFactionsKey(sessionId), factionId)
+	if err != nil || isMember == false {
+		log.Println("factionId not found", err)
+		http.Error(w, "factionId not found", http.StatusNotFound)
+		return
+	}
+	influence, err := strconv.Atoi(influenceStr)
+	if err != nil || influence < minInfluence || maxInfluence < influence {
+		log.Println("invalid influence", influenceStr)
+		http.Error(w, "invalid influence", http.StatusBadRequest)
+		return
+	}
+	var retCards []cardlib.CardCodeQuantity
+	err = json.Unmarshal(body, &retCards)
+	if err != nil {
+		log.Println("Error parsing retCards", err)
+		http.Error(w, "invalid request body", http.StatusBadRequest)
+		return
+	}
+	
 	// TODO: draw reasonable cards for this faction from the pool in redis
+	draftedCards := []cardlib.Card{}
+
+	// Respond
 	json.NewEncoder(w).Encode(DraftResponse{
 		Session: sessionId,
 		Faction: factionId,
-		Cards: []cardlib.Card{}, // TODO
+		Cards: draftedCards,
 	})
 }
 
@@ -142,8 +292,9 @@ func main() {
 	initializeStructures()
 	router := mux.NewRouter().StrictSlash(true)
 	draftRouter := router.PathPrefix("/draft").Subrouter()
-	draftRouter.HandleFunc("/withPacks/{packIds}", selectPacks)
-	draftRouter.HandleFunc("/session/{sessionId}/faction/{factionId}", draft)
+	draftRouter.HandleFunc("/withPacks/{packIds}/factions", selectPacks)
+	draftRouter.HandleFunc("/session/{sessionId}/faction/{factionId}/identities", getIdentities)
+	draftRouter.HandleFunc("/session/{sessionId}/faction/{factionId}/withInfluence/{influence}", draft)
 	router.PathPrefix("/data").Handler(http.StripPrefix("/data/", http.FileServer(http.Dir("data/"))))
 	router.PathPrefix("/").Handler(http.FileServer(http.Dir("static/")))
 	port := ":"

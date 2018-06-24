@@ -20,6 +20,7 @@ func cards_by_pack(cards []cardlib.Card, packs []cardlib.Pack)map[string][]cardl
 	for _, card := range cards {
 		ret[card.Pack] = append(ret[card.Pack], cardlib.CardCodeQuantity{
 			Code: card.Code,
+			Faction: card.Faction,
 			Quantity: card.Quantity,
 		})
 	}

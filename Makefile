@@ -1,4 +1,4 @@
-.PHONY: run install
+.PHONY: run install redis clean
 
 run: install
 	heroku local
@@ -8,6 +8,9 @@ install: deckbuilder
 
 deckbuilder:
 	go build
+
+redis:
+	heroku redis:cli -a anrdraft -c anrdraft
 
 clean:
 	rm -f deckbuilder
