@@ -7,9 +7,12 @@ import (
 	"log"
 	"net/http"
 	"math/rand"
+	"os"
 	"strconv"
 	"strings"
 )
+
+const defaultPort = "8080"
 
 func logAndSetContent(w http.ResponseWriter, r *http.Request) {
 	log.Println(*r)
@@ -74,5 +77,12 @@ func main() {
 	router.HandleFunc("/draft/withPacks/{packIds}", selectPacks)
 	router.HandleFunc("/draft/session/{sessionId}/side/{sideId}", selectSide)
 	router.HandleFunc("/draft/session/{sessionId}/faction/{factionId}", draft)
-	log.Fatal(http.ListenAndServe(":8080", router))
+	port := ":"
+	if portVar := os.Getenv("PORT"); portVar == "" {
+		port += defaultPort
+	} else {
+		port += portVar
+	}
+	log.Println("Running on port", port)
+	log.Fatal(http.ListenAndServe(port, router))
 }
