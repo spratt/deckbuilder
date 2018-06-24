@@ -17,12 +17,12 @@ import (
 // Configuration
 const defaultPort = "8080"
 
-// Shared global structures (yuck)
+// Shared global data
+var redisUrl string
 var cards map[string]cardlib.Card
 var cardsByPack map[string][]cardlib.CardCodeQuantity
 var factions map[string]cardlib.Faction
 var factionsByPack map[string][]string
-var redisUrl string
 
 // Helper functions
 func logAndSetContent(w http.ResponseWriter, r *http.Request) {
@@ -79,6 +79,9 @@ func selectPacks(w http.ResponseWriter, r *http.Request) {
 	c, err := redis.DialURL(redisUrl)
 	if err != nil {
     // Handle error
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("Error while trying to connect to redis", err)
+		return
 	}
 	defer c.Close()
 	// Build a set of included factions
@@ -97,7 +100,7 @@ func selectPacks(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(SelectPacksResponse{
 		Session: strconv.FormatUint(rand.Uint64(), 10),
 		Packs: packIds,
-		Factions: factionsRet, // TODO
+		Factions: factionsRet,
 	})
 }
 
