@@ -6,24 +6,29 @@ import (
 	"strings"
 )
 
-const CardsOutputFile = "cards.json"
-const CardsInputFile = "cards_input.json"
-const PacksOutputFile = "packs.json"
-const PacksInputFile = "packs_input.json"
-const CardsByPackFile = "cards_by_pack.json"
-
-type Side struct {
-	Name string
-	Code string
-	Description string
-	ImageUrl string
-}
+const CardsOutputFile = "data/cards.json"
+const CardsInputFile = "data/cards_input.json"
+const PacksOutputFile = "data/packs.json"
+const PacksInputFile = "data/packs_input.json"
+const CardsByPackFile = "data/cards_by_pack.json"
+const FactionsInputFile = "data/factions_input.json"
+const FactionsOutputFile = "data/factions.json"
+const FactionsByPackFile = "data/factions_by_pack.json"
 
 type Faction struct {
-	Name string
-	Code string
-	Description string
-	ImageUrl string
+	Code string `json:"code"`
+	Color string `json:"color"`
+	IsMini bool `json:"is_mini"`
+	Name string `json:"name"`
+	SideCode string `json:"side_code"`
+}
+
+type FactionsContainer struct {
+	Data []Faction
+	Total int `json:"total"`
+	Success bool `json:"success"`
+	VersionNumber string `json:"version_number"`
+	LastUpdated string `json:"last_updated"`
 }
 
 type CardsInput struct {
@@ -39,6 +44,7 @@ type Card struct {
 	Title       string
 	Text        string
 	Side        string
+	Faction     string
 	Quantity    int
 	Types       []string
 	UnknownKeys []string

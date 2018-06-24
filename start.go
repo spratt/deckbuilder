@@ -22,35 +22,18 @@ func logAndSetContent(w http.ResponseWriter, r *http.Request) {
 type SelectPacksResponse struct {
 	Session string
 	Packs []string
-	Sides []string
+	Factions []cardlib.Faction
 }
 
 func selectPacks(w http.ResponseWriter, r *http.Request) {
 	logAndSetContent(w, r)
 	vars := mux.Vars(r)
 	packIds := strings.Split(vars["packIds"], ",")
+	// TODO: store the cards available from these packs in redis
 	json.NewEncoder(w).Encode(SelectPacksResponse{
 		Session: strconv.FormatUint(rand.Uint64(), 10),
 		Packs: packIds,
-		Sides: []string{"corp", "runner"},
-	})
-}
-
-type SelectSideResponse struct {
-	Session string
-	Side string
-	Factions []string
-}
-
-func selectSide(w http.ResponseWriter, r *http.Request) {
-	logAndSetContent(w, r)
-	vars := mux.Vars(r)
-	sessionId := vars["sessionId"]
-	sideId := vars["sideId"]
-	json.NewEncoder(w).Encode(SelectSideResponse{
-		Session: sessionId,
-		Side: sideId,
-		Factions: []string{}, // TODO
+		Factions: []cardlib.Faction{}, // TODO
 	})
 }
 
@@ -65,6 +48,7 @@ func draft(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	sessionId := vars["sessionId"]
 	factionId := vars["factionId"]
+	// TODO: draw reasonable cards for this faction
 	json.NewEncoder(w).Encode(DraftResponse{
 		Session: sessionId,
 		Faction: factionId,
@@ -76,7 +60,6 @@ func main() {
 	router := mux.NewRouter().StrictSlash(true)
 	draftRouter := router.PathPrefix("/draft").Subrouter()
 	draftRouter.HandleFunc("/withPacks/{packIds}", selectPacks)
-	draftRouter.HandleFunc("/session/{sessionId}/side/{sideId}", selectSide)
 	draftRouter.HandleFunc("/session/{sessionId}/faction/{factionId}", draft)
 	router.PathPrefix("/data").Handler(http.StripPrefix("/data/", http.FileServer(http.Dir("data/"))))
 	router.PathPrefix("/").Handler(http.FileServer(http.Dir("static/")))
