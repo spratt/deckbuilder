@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/gomodule/redigo/redis"
 	"github.com/gorilla/mux"
 	"github.com/spratt/deckbuilder/cardlib"
 	"io/ioutil"
@@ -21,6 +22,7 @@ var cards map[string]cardlib.Card
 var cardsByPack map[string][]cardlib.CardCodeQuantity
 var factions map[string]cardlib.Faction
 var factionsByPack map[string][]string
+var redisUrl string
 
 // Helper functions
 func logAndSetContent(w http.ResponseWriter, r *http.Request) {
@@ -35,6 +37,11 @@ func check(err error) {
 }
 
 func initializeStructures() {
+	redisUrl = os.Getenv("REDIS_URL")
+	if redisUrl == "" {
+		log.Fatal("Missing environment variable: $REDIS_URL")
+	}
+	
 	// Read all the data we need to form our reply
 	cardsBytes, err := ioutil.ReadFile(cardlib.CardsOutputFile)
 	check(err)
@@ -68,7 +75,12 @@ func selectPacks(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	packIds := strings.Split(vars["packIds"], ",")
 	
-	// TODO: store the cards available from these packs in redis
+	// Store the cards available from these packs in redis
+	c, err := redis.DialURL(redisUrl)
+	if err != nil {
+    // Handle error
+	}
+	defer c.Close()
 	// Build a set of included factions
 	factionSet := make(map[string]bool)
 	for _, packId := range packIds {
@@ -101,7 +113,7 @@ func draft(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	sessionId := vars["sessionId"]
 	factionId := vars["factionId"]
-	// TODO: draw reasonable cards for this faction
+	// TODO: draw reasonable cards for this faction from the pool in redis
 	json.NewEncoder(w).Encode(DraftResponse{
 		Session: sessionId,
 		Faction: factionId,
