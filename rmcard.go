@@ -13,6 +13,7 @@ import (
 )
 
 var typeFlag = flag.Bool("t", false, "If present, parse the arguments as types of cards to remove")
+var lenFlag = flag.Bool("l", false, "If present, return the total number of cards")
 
 func check(err error) {
 	if err != nil {
@@ -30,10 +31,6 @@ func maybePluralize(s string, n int)string {
 func main() {
 	// Figure out what we want to remove
 	flag.Parse()
-	toRemove := flag.Args()
-	if len(toRemove) == 0 {
-		return
-	}
 	
 	// Check for cards we've already classified
 	doneCardsBytes, err := ioutil.ReadFile(cardlib.CardsOutputFile)
@@ -41,6 +38,16 @@ func main() {
 	var doneCards map[string]cardlib.Card
 	err = json.Unmarshal(doneCardsBytes, &doneCards)
 	check(err)
+
+	// Print length if -l
+	if *lenFlag {
+		fmt.Printf("There are %d cards.\n", len(doneCards))
+		return
+	}
+	toRemove := flag.Args()
+	if len(toRemove) == 0 {
+		return
+	}
 
 	// Remove the specified card(s)
 	var codesToRemove []string

@@ -66,7 +66,16 @@ func PrintCard(card map[string]interface{}) {
 		}
 	}
 	PrintTableBorder()
-	fmt.Printf("%s\n", card["text"])
-	fmt.Printf("%s\n", card["flavor"])
+	if text, hasText := card["text"]; hasText {
+		fmt.Printf("%s\n", text)
+	}
+	if flavorText, hasFlavor := card["flavor"]; hasFlavor {
+		fmt.Printf("%s\n", flavorText)
+	}
 	PrintLine()
+}
+
+func Remove(s []string, i int) []string {
+    s[len(s)-1], s[i] = s[i], s[len(s)-1]
+    return s[:len(s)-1]
 }
