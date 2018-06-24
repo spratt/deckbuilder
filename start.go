@@ -17,6 +17,7 @@ import (
 const defaultPort = "8080"
 
 // Shared global structures (yuck)
+var cards map[string]cardlib.Card
 var cardsByPack map[string][]cardlib.CardCodeQuantity
 var factions map[string]cardlib.Faction
 var factionsByPack map[string][]string
@@ -35,6 +36,8 @@ func check(err error) {
 
 func initializeStructures() {
 	// Read all the data we need to form our reply
+	cardsBytes, err := ioutil.ReadFile(cardlib.CardsOutputFile)
+	check(err)
 	cardsByPackBytes, err := ioutil.ReadFile(cardlib.CardsByPackFile)
 	check(err)
 	factionsBytes, err := ioutil.ReadFile(cardlib.FactionsOutputFile)
@@ -43,6 +46,8 @@ func initializeStructures() {
 	check(err)
 
 	// Unmarshal all the data we need to form our reply
+	err = json.Unmarshal(cardsBytes, &cards)
+	check(err)
 	err = json.Unmarshal(cardsByPackBytes, &cardsByPack)
 	check(err)
 	err = json.Unmarshal(factionsBytes, &factions)
