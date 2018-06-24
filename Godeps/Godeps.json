@@ -7,6 +7,16 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/gomodule/redigo/internal",
+			"Comment": "v2.0.0-3-gbb5990d",
+			"Rev": "bb5990dc771ab24e169aaea90ee3b9ad50cffce9"
+		},
+		{
+			"ImportPath": "github.com/gomodule/redigo/redis",
+			"Comment": "v2.0.0-3-gbb5990d",
+			"Rev": "bb5990dc771ab24e169aaea90ee3b9ad50cffce9"
+		},
+		{
 			"ImportPath": "github.com/gorilla/mux",
 			"Comment": "v1.6.2-3-gcb46983",
 			"Rev": "cb4698366aa625048f3b815af6a0dea8aef9280a"
