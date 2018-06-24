@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/gorilla/mux"
 	"github.com/spratt/deckbuilder/cardlib"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"math/rand"
@@ -12,13 +13,45 @@ import (
 	"strings"
 )
 
+// Configuration
 const defaultPort = "8080"
 
+// Shared global structures (yuck)
+var cardsByPack map[string][]cardlib.CardCodeQuantity
+var factions map[string]cardlib.Faction
+var factionsByPack map[string][]string
+
+// Helper functions
 func logAndSetContent(w http.ResponseWriter, r *http.Request) {
 	log.Println(*r)
 	w.Header().Set("Content-Type", "application/json")
 }
 
+func check(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
+}
+
+func initializeStructures() {
+	// Read all the data we need to form our reply
+	cardsByPackBytes, err := ioutil.ReadFile(cardlib.CardsByPackFile)
+	check(err)
+	factionsBytes, err := ioutil.ReadFile(cardlib.FactionsOutputFile)
+	check(err)
+	factionsByPackBytes, err := ioutil.ReadFile(cardlib.FactionsByPackFile)
+	check(err)
+
+	// Unmarshal all the data we need to form our reply
+	err = json.Unmarshal(cardsByPackBytes, &cardsByPack)
+	check(err)
+	err = json.Unmarshal(factionsBytes, &factions)
+	check(err)
+	err = json.Unmarshal(factionsByPackBytes, &factionsByPack)
+	check(err)
+}
+
+// Select packs
 type SelectPacksResponse struct {
 	Session string
 	Packs []string
@@ -29,14 +62,29 @@ func selectPacks(w http.ResponseWriter, r *http.Request) {
 	logAndSetContent(w, r)
 	vars := mux.Vars(r)
 	packIds := strings.Split(vars["packIds"], ",")
+	
 	// TODO: store the cards available from these packs in redis
+	// Build a set of included factions
+	factionSet := make(map[string]bool)
+	for _, packId := range packIds {
+		for _, faction := range factionsByPack[packId] {
+			factionSet[faction] = true
+		}
+	}
+	factionsRet := []cardlib.Faction{}
+	for faction, _ := range factionSet {
+		factionsRet = append(factionsRet, factions[faction])
+	}
+	
+	// Respond
 	json.NewEncoder(w).Encode(SelectPacksResponse{
 		Session: strconv.FormatUint(rand.Uint64(), 10),
 		Packs: packIds,
-		Factions: []cardlib.Faction{}, // TODO
+		Factions: factionsRet, // TODO
 	})
 }
 
+// Draft
 type DraftResponse struct {
 	Session string
 	Faction string
@@ -57,6 +105,7 @@ func draft(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	initializeStructures()
 	router := mux.NewRouter().StrictSlash(true)
 	draftRouter := router.PathPrefix("/draft").Subrouter()
 	draftRouter.HandleFunc("/withPacks/{packIds}", selectPacks)

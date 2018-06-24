@@ -15,7 +15,7 @@ func check(err error) {
 	}	
 }
 
-func factions_by_pack(cards []cardlib.Card, factionsByCode map[string]cardlib.Faction)map[string][]cardlib.Faction {
+func factions_by_pack(cards []cardlib.Card)map[string][]string {
 	packToFactionMap := make(map[string]map[string]bool)
 	for _, card := range cards {
 		if _, hasKey := packToFactionMap[card.Pack]; !hasKey {
@@ -23,10 +23,10 @@ func factions_by_pack(cards []cardlib.Card, factionsByCode map[string]cardlib.Fa
 		}
 		packToFactionMap[card.Pack][card.Faction] = true
 	}
-	ret := make(map[string][]cardlib.Faction)
+	ret := make(map[string][]string)
 	for pack, factionCodes := range packToFactionMap {
-		for faction,_ := range factionCodes {
-			ret[pack] = append(ret[pack], factionsByCode[faction])
+		for factionCode,_ := range factionCodes {
+			ret[pack] = append(ret[pack], factionCode)
 		}
 	}
 	return ret
@@ -40,27 +40,14 @@ func main() {
 	err = json.Unmarshal(cardsBytes, &cards)
 	check(err)
 
-	// read factions
-	factionsBytes, err := ioutil.ReadFile(cardlib.FactionsOutputFile)
-	check(err)
-	var factions []cardlib.Faction
-	err = json.Unmarshal(factionsBytes, &factions)
-	check(err)
-
 	// make a slice of cards
 	justCards := []cardlib.Card{}
 	for _, card := range cards {
 		justCards = append(justCards, card)
 	}
 
-	// make a map of factions
-	factionsMap := make(map[string]cardlib.Faction)
-	for _, faction := range factions {
-		factionsMap[faction.Code] = faction
-	}
-
 	// sort by pack
-	factionsByPack := factions_by_pack(justCards, factionsMap)
+	factionsByPack := factions_by_pack(justCards)
 
 	// write out
 	factionsByPackBytes, err := json.Marshal(factionsByPack)

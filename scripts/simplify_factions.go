@@ -15,6 +15,14 @@ func check(err error) {
 	}	
 }
 
+func sort_factions(factions []cardlib.Faction)map[string]cardlib.Faction {
+	ret := make(map[string]cardlib.Faction)
+	for _, faction := range factions {
+		ret[faction.Code] = faction
+	}
+	return ret
+}
+
 func main() {
 	factionsContainerBytes, err := ioutil.ReadFile(cardlib.FactionsInputFile)
 	check(err)
@@ -22,7 +30,9 @@ func main() {
 	err = json.Unmarshal(factionsContainerBytes, &factionsContainer)
 	check(err)
 
-	factionOutBytes, err := json.Marshal(factionsContainer.Data)
+	sorted_factions := sort_factions(factionsContainer.Data)
+
+	factionOutBytes, err := json.Marshal(sorted_factions)
 	check(err)
 	err = ioutil.WriteFile(cardlib.FactionsOutputFile, factionOutBytes, 0644)
 	check(err)
