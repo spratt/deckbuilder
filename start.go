@@ -12,17 +12,20 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // Configuration
 const defaultPort = "8080"
 
 // Shared global data
-var redisUrl string
-var cards map[string]cardlib.Card
-var cardsByPack map[string][]cardlib.CardCodeQuantity
-var factions map[string]cardlib.Faction
-var factionsByPack map[string][]string
+var (
+	cards map[string]cardlib.Card
+	cardsByPack map[string][]cardlib.CardCodeQuantity
+	factions map[string]cardlib.Faction
+	factionsByPack map[string][]string
+	pool *redis.Pool
+)
 
 // Helper functions
 func logAndSetContent(w http.ResponseWriter, r *http.Request) {
@@ -36,11 +39,20 @@ func check(err error) {
 	}
 }
 
+func newPool(url string) *redis.Pool {
+  return &redis.Pool{
+    MaxIdle: 3,
+    IdleTimeout: 240 * time.Second,
+    Dial: func () (redis.Conn, error) { return redis.DialURL(url) },
+  }
+}
+
 func initializeStructures() {
-	redisUrl = os.Getenv("REDIS_URL")
+	redisUrl := os.Getenv("REDIS_URL")
 	if redisUrl == "" {
 		log.Fatal("Missing environment variable: $REDIS_URL")
 	}
+	pool = newPool(redisUrl)
 	
 	// Read all the data we need to form our reply
 	cardsBytes, err := ioutil.ReadFile(cardlib.CardsOutputFile)
@@ -76,13 +88,7 @@ func selectPacks(w http.ResponseWriter, r *http.Request) {
 	packIds := strings.Split(vars["packIds"], ",")
 	
 	// Store the cards available from these packs in redis
-	c, err := redis.DialURL(redisUrl)
-	if err != nil {
-    // Handle error
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Println("Error while trying to connect to redis", err)
-		return
-	}
+	c := pool.Get()
 	defer c.Close()
 	// Build a set of included factions
 	factionSet := make(map[string]bool)
