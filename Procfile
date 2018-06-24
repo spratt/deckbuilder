@@ -1,1 +1,1 @@
-web: ./deckbuilder
+web: deckbuilder
