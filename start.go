@@ -19,6 +19,8 @@ import (
 const defaultPort = "8080"
 const minInfluence = 0
 const maxInfluence = 99
+const maxTries = 3
+const draftHandSize = 3
 
 // Shared global data
 var (
@@ -94,7 +96,7 @@ type SelectPacksResponse struct {
 
 func rollBackSelectPacks(c redis.Conn, sessionId string) {
 	allFactionsKey := AllFactionsKey(sessionId)
-	for true {
+	for {
 		faction, err := c.Do("SPOP", allFactionsKey)
 		if err != nil {
 			break
@@ -230,7 +232,12 @@ type DraftResponse struct {
 	Session string
 	Faction string
 	Influence string
+	CardCodeQuantities []cardlib.CardCodeQuantity
 	Cards []cardlib.Card
+}
+
+func isValidCardCodeQuantity(ccq cardlib.CardCodeQuantity, card cardlib.Card) bool {
+	return ccq.Quantity > 0 && ccq.Quantity <= card.Quantity
 }
 
 func draft(w http.ResponseWriter, r *http.Request) {
@@ -242,8 +249,8 @@ func draft(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("Error reading body", err)
-		http.Error(w, "can't read body", http.StatusBadRequest)
-		return
+		// http.Error(w, "can't read body", http.StatusBadRequest)
+		// return
 	}
 	
 	// Connect to redis
@@ -273,17 +280,127 @@ func draft(w http.ResponseWriter, r *http.Request) {
 	err = json.Unmarshal(body, &retCards)
 	if err != nil {
 		log.Println("Error parsing retCards", err)
-		http.Error(w, "invalid request body", http.StatusBadRequest)
-		return
+		// http.Error(w, "invalid request body", http.StatusBadRequest)
+		// return
+	}
+
+	// return retCards
+	for _, retCard := range retCards {
+		card, hasCard := cards[retCard.Code]
+		if hasCard == false || isValidCardCodeQuantity(retCard, card) == false {
+			// log the issue and move on
+			log.Println("Tried to return invalid card", retCard)
+			continue
+		}
+		ccqBytes, err := json.Marshal(retCard)
+		if err != nil {
+			// log the issue and move on
+			log.Println("Error while marshalling retCard", retCard)
+			continue
+		}
+		c.Do("SADD", FactionKey(sessionId, card.Details["faction"]), ccqBytes)
 	}
 	
-	// TODO: draw reasonable cards for this faction from the pool in redis
+	// draw reasonable cards for this faction from the pool in redis
+	draftedCardCodeQuantities := []cardlib.CardCodeQuantity{}
 	draftedCards := []cardlib.Card{}
+	if influence > 0 {
+		// try to draft an out-of-faction card
+		for i := 0; i < maxTries; i++ {
+			factionBytes, err := c.Do("SRANDMEMBER", AllFactionsKey(sessionId))
+			if err != nil {
+				continue
+			}
+			faction := string(factionBytes.([]byte)[:])
+			for j := 0; j < maxTries; j++ {
+				cardJson, err := c.Do("SPOP", FactionKey(sessionId, faction))
+				if err != nil {
+					log.Println("Couldn't pop a faction", err)
+					break
+				}
+				var cardCodeQuantity cardlib.CardCodeQuantity
+				err = json.Unmarshal(cardJson.([]byte), &cardCodeQuantity)
+				if err != nil {
+					log.Println("Couldn't marshal a ccq", err)
+					c.Do("SADD", FactionKey(sessionId, faction), cardJson)
+					break
+				}
+				// Get the card information
+				card, hasCard := cards[cardCodeQuantity.Code]
+				if invalidCcq := isValidCardCodeQuantity(cardCodeQuantity, card) == false; hasCard == false || invalidCcq {
+					log.Println("hasCard", hasCard)
+					log.Println("invalidCcq", invalidCcq)
+					c.Do("SADD", FactionKey(sessionId, faction), cardJson)
+					break
+				}
+				good := true
+				// make sure it's not an identity
+				for _, t := range card.Types {
+					if t == "identity" {
+						good = false
+						break
+					}
+				}
+				if good == false {
+					c.Do("SADD", FactionKey(sessionId, faction), cardJson)
+					break
+				}
+				// make sure it isn't more faction cost than the drafter has influence
+				factionCost, err := strconv.Atoi(card.Details["faction_cost"])
+				if err != nil || factionCost > influence {
+					c.Do("SADD", FactionKey(sessionId, faction), cardJson)
+					break
+				}
+				draftedCardCodeQuantities = append(draftedCardCodeQuantities, cardCodeQuantity)
+				draftedCards = append(draftedCards, card)
+				break
+			}
+			if len(draftedCards) > 0 {
+				break
+			}
+		}
+	}
+	for tries := 0; len(draftedCards) < draftHandSize && tries < maxTries; tries++ {
+		cardJson, err := c.Do("SPOP", FactionKey(sessionId, factionId))
+		if err != nil {
+			break
+		}
+		var cardCodeQuantity cardlib.CardCodeQuantity
+		err = json.Unmarshal(cardJson.([]byte), &cardCodeQuantity)
+		if err != nil {
+			c.Do("SADD", FactionKey(sessionId, factionId), cardJson)
+			continue
+		}
+		// Get the card information
+		card, hasCard := cards[cardCodeQuantity.Code]
+		if invalidCcq := isValidCardCodeQuantity(cardCodeQuantity, card) == false; hasCard == false || invalidCcq {
+			log.Println("hasCard", hasCard)
+			log.Println("invalidCcq", invalidCcq)
+			c.Do("SADD", FactionKey(sessionId, factionId), cardJson)
+			break
+		}
+		good := true
+		// make sure it's not an identity
+		for _, t := range card.Types {
+			if t == "identity" {
+				good = false
+				break
+			}
+		}
+		if good == false {
+			c.Do("SADD", FactionKey(sessionId, factionId), cardJson)
+			continue
+		}
+		draftedCardCodeQuantities = append(draftedCardCodeQuantities, cardCodeQuantity)
+		draftedCards = append(draftedCards, card)
+	}
 
 	// Respond
 	json.NewEncoder(w).Encode(DraftResponse{
 		Session: sessionId,
 		Faction: factionId,
+		Influence: influenceStr,
+		CardCodeQuantities: draftedCardCodeQuantities,
 		Cards: draftedCards,
 	})
 }

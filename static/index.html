@@ -28,17 +28,46 @@
       This is a guided deckbuilder for the Android: Netrunner card
       game.
     </p>
+    <div id="loading" class="hidden">Loading...</div>
     <div id="choose-packs" class="hidden">
       The first step is to tell me which packs you have:
-      <form id="packs-form" action="">
+      <form id="packs-form" action="#">
+        <fieldset id="packs-field">
+          <legend>Which packs do you have?</legend>
+        </fieldset> 
+        <input id="choose-packs-submit" type="submit" value="Continue ->" />
       </form>
     </div>
-    <div id="choose-sides" class="hidden">
+    <div id="choose-side" class="hidden">
       The next step is to choose your side:
-      <ul>
-        <a href="#"><h2><li>Corp</h2> a mega corporation whose purpose is to carry out its negarious agendas;</a> or
-        <a href="#"><h2><li>Runner</h2> a hacker determined to prevent corps from fulfilling their agendas.</a>
-      </ul>
+      <p>
+        <a id="corp-link" href="#">Corp: a mega corporation whose purpose is to carry out its negarious agendas;</a> or <br/>
+        <a id="runner-link" href="#">Runner: a hacker determined to prevent corps from fulfilling their agendas.</a>
+      </p>
+    </div>
+    <div id="choose-faction" class="hidden">
+      <form id="factions-form" action="#">
+        <fieldset id="faction-field">
+          <legend>Which faction do you want?</legend>
+        </fieldset> 
+        <input id="choose-faction-submit" type="submit" value="Continue ->" />
+      </form>
+    </div>
+    <div id="choose-identity" class="hidden">
+      <form id="identities-form" action="#">
+        <fieldset id="identity-field">
+          <legend>Which identity do you want?</legend>
+        </fieldset> 
+        <input id="choose-identity-submit" type="submit" value="Continue ->" />
+      </form>
+    </div>
+    <div id="draft-cards" class="hidden">
+      <form id="cards-form" action="#">
+        <fieldset id="cards-field">
+          <legend>Which card do you want?</legend>
+        </fieldset> 
+        <input id="choose-card-submit" type="submit" value="Continue ->" />
+      </form>
     </div>
   </section>
   <footer>
