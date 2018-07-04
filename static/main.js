@@ -183,12 +183,19 @@
         identities_field.appendChild(document.createTextNode(identity.Title));
         identities_field.appendChild(document.createElement('br'));
         const img = document.createElement('img');
-        if ('AltImageUrl' in identity) {
+        img.setAttribute('alt', identity.Text);
+        if ('ImageUrl' in identity && identity.ImageUrl !== '') {
+          img.setAttribute('src', identity.ImageUrl);
+          if ('AltImageUrl' in identity && identity.AltImageUrl !== '') {
+            img.addEventListener('error', function(event) {
+              event.target.setAttribute('src', identity.AltImageUrl);
+            });
+          }
+        } else if ('AltImageUrl' in identity && identity.AltImageUrl !== '') {
           img.setAttribute('src', identity.AltImageUrl);
         } else {
-          img.setAttribute('src', identity.ImageUrl);
+          console.error('No image url to set for identity', identity);
         }
-        img.setAttribute('alt', identity.Text);
         identities_field.appendChild(img);
         identities_field.appendChild(document.createElement('br'));
       });
@@ -235,19 +242,21 @@
         draft_field.appendChild(entry);
         draft_field.appendChild(document.createTextNode(card.Title));
         draft_field.appendChild(document.createElement('br'));
-        if ('AltImageUrl' in card) {
-          const img = document.createElement('img');
-          img.setAttribute('src', card.AltImageUrl);
-          img.setAttribute('alt', card.Text);
-          draft_field.appendChild(img);
-          draft_field.appendChild(document.createElement('br'));
-        }
-        if ('ImageUrl' in card) {
-          const img = document.createElement('img');
+        const img = document.createElement('img');
+        img.setAttribute('alt', card.Text);
+        if ('ImageUrl' in card && card.ImageUrl !== '') {
           img.setAttribute('src', card.ImageUrl);
-          img.setAttribute('alt', card.Text);
-          draft_field.appendChild(img);
+          if ('AltImageUrl' in card && card.AltImageUrl !== '') {
+            img.addEventListener('error', function(event) {
+              event.target.setAttribute('src', card.AltImageUrl);
+            });
+          }
+        } else if ('AltImageUrl' in card && card.AltImageUrl !== '') {
+          img.setAttribute('src', card.AltImageUrl);
+        } else {
+          console.error('No image url to set for card', card);
         }
+        draft_field.appendChild(img);
         draft_field.appendChild(document.createElement('br'));
       });
       removeClass(draft_div, hidden_class);
