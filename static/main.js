@@ -9,6 +9,8 @@
   var faction = null;
   var identity = null;
   var remaining_influence = null;
+  const drafted_cards = new Set();
+  const drafted_deck = new Map();
 
   const neutralRegex = /neutral/i;
 
@@ -45,6 +47,7 @@
     packs_form.addEventListener('submit', choose_packs);
     factions_form.addEventListener('submit', choose_faction);
     identities_form.addEventListener('submit', choose_identity);
+    draft_form.addEventListener('submit', choose_card);
     [corp_link, runner_link].forEach(function(link) {
       link.addEventListener('click', choose_side);
     });
@@ -89,7 +92,6 @@
       url += pack.value;
     });
     url += url_end;
-    console.log('url: ', url);
     
     var oReq = new XMLHttpRequest();
     oReq.addEventListener('load', load_factions(oReq));
@@ -157,9 +159,7 @@
     factions_div.className += hidden_class;
     
     faction = JSON.parse(factions_chosen[0].value);
-    console.dir(faction);
     const url = 'draft/session/' + sessionId + '/faction/' + faction.code + '/identities';
-    console.log('choose_faction url: ', url);
     
     var oReq = new XMLHttpRequest();
     oReq.addEventListener('load', load_identities(oReq));
@@ -175,7 +175,6 @@
         return;
       }
       const json = JSON.parse(xhr.responseText);
-      console.dir('identities:', json);
       json.Identities.forEach(function(identity) {
         const entry = makeRadio('identity-choice');
         entry.setAttribute('value', JSON.stringify(identity));
@@ -209,14 +208,12 @@
       return false;
     }
     
-    identities_div.className += hidden_class;
-
     const identities_chosen = event.target.querySelectorAll("input[type='radio']:checked");
     if (identities_chosen.length < 1) {
       return false;
     }
+    identities_div.className += hidden_class;
     identity = JSON.parse(identities_chosen[0].value);
-    console.dir(identity);
     remaining_influence = parseInt(identity.Details.influence_limit, 10);
 
     const url = 'draft/session/' + sessionId + '/faction/' + faction.code + '/withInfluence/' + remaining_influence;
@@ -235,9 +232,9 @@
         return;
       }
       const json = JSON.parse(xhr.responseText);
-      console.dir('cards:', json);
       json.Cards.forEach(function(card, i) {
         const entry = makeRadio('card-choice');
+        entry.setAttribute('data', JSON.stringify(card));
         entry.setAttribute('value', JSON.stringify(json.CardCodeQuantities[i]));
         draft_field.appendChild(entry);
         draft_field.appendChild(document.createTextNode(card.Title));
@@ -263,7 +260,61 @@
     };
   }
 
-  function choose_card() {
+  function choose_card(event) {
+    event.preventDefault();
+    if (sessionId === null) {
+      return false;
+    }
+    
+    const card_chosen = event.target.querySelectorAll("input[type='radio']:checked");
+    if (card_chosen.length < 1) {
+      return false;
+    }
+    draft_div.className += hidden_class;
+
+    const all_cards = event.target.querySelectorAll("input[type='radio']");
+    const retCards = [];
+    all_cards.forEach(function(card_elmnt) {
+      const ccq = JSON.parse(card_elmnt.value);
+      const card = JSON.parse(card_elmnt.attributes.getNamedItem('data').value);
+      if (card_elmnt.checked) {
+        if (ccq.Faction !== faction) {
+          remaining_influence -= parseInt(card.Details.faction_cost, 10);
+          ccq.Quantity -= 1;
+          if (ccq.Quantity > 0) {
+            retCards.push(ccq);
+          }
+          add_drafted_card(card, ccq);
+        }
+      } else {
+        retCards.push(ccq);
+      }
+    });
+    console.log('Returning cards', retCards);
+    console.log('Cards in deck', drafted_cards);
+    console.log('Deck', drafted_deck);
+
+    while (draft_field.firstChild) {
+      draft_field.firstChild.remove();
+    }
+
+    const url = `draft/session/${sessionId}/faction/${faction.code}/withInfluence/${remaining_influence}`;
+    var oReq = new XMLHttpRequest();
+    oReq.addEventListener('load', load_cards(oReq));
+    oReq.open('GET', url);
+    oReq.send(JSON.stringify(retCards));
+
+    return false;
+  }
+
+  function add_drafted_card(card) {
+    drafted_cards.add(card);
+    if (drafted_deck.has(card.Code)) {
+      const quantity = drafted_deck.get(card.Code);
+      drafted_deck.set(card.Code, quantity + 1);
+    } else {
+      drafted_deck.set(card.Code, 1);
+    }
   }
   
   function removeClass(elements, myClass) {
