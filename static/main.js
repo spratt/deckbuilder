@@ -1,7 +1,7 @@
 'use strict';
 (function() {
   const start_checked = [
-    'core2', 'td', 'dad', 'cac', 'hap', 'dtwn', '23s', 'cd'
+    'core2', 'td', 'dad', 'cac', 'hap', 'dtwn', '23s', 'cd', 'oac'
   ];
 
   var sessionId = null;
@@ -76,10 +76,10 @@
   function choose_packs(event) {
     const packs = event.target.querySelectorAll("input[type='checkbox']:checked");
     const url_begin = 'draft/withPacks/';
-    const url_end = '/factions';
+    const url_end = '/sides';
 
     packs_div.className += hidden_class;
-    removeClass(sides_div, hidden_class);
+    removeClass(loading_div, hidden_class);
 
     var url = url_begin;
     var first = true;
@@ -94,13 +94,25 @@
     url += url_end;
     
     var oReq = new XMLHttpRequest();
-    oReq.addEventListener('load', load_factions(oReq));
+    oReq.addEventListener('load', load_sides(oReq));
     oReq.open('GET', url);
     oReq.send();
 
     // Don't change the URL
     event.preventDefault();
     return false;
+  }
+
+  function load_sides(xhr) {
+    return function() {
+      if (xhr.readyState !== 4 && xhr.status !== 200) {
+        return;
+      }
+      const json = JSON.parse(xhr.responseText);
+      sessionId = json.Session;
+      loading_div.className += hidden_class;
+      removeClass(sides_div, hidden_class);
+    };
   }
 
   function choose_side(event) {
@@ -118,7 +130,12 @@
     sides_div.className += hidden_class;
     removeClass(loading_div, hidden_class);
 
-    // TODO: filter identities
+    const url = `draft/session/${sessionId}/side/${sideId}/factions`;
+
+    var oReq = new XMLHttpRequest();
+    oReq.addEventListener('load', load_factions(oReq));
+    oReq.open('GET', url);
+    oReq.send();
 
     return false;
   }
@@ -129,7 +146,6 @@
         return;
       }
       const json = JSON.parse(xhr.responseText);
-      sessionId = json.Session;
       json.Factions.filter(function(faction) {
         return sideId == null ||
           (faction.side_code == sideId &&
@@ -159,7 +175,8 @@
     factions_div.className += hidden_class;
     
     faction = JSON.parse(factions_chosen[0].value);
-    const url = 'draft/session/' + sessionId + '/faction/' + faction.code + '/identities';
+    
+    const url = `draft/session/${sessionId}/side/${sideId}/faction/${faction.code}/identities`;
     
     var oReq = new XMLHttpRequest();
     oReq.addEventListener('load', load_identities(oReq));
@@ -216,8 +233,8 @@
     identity = JSON.parse(identities_chosen[0].value);
     remaining_influence = parseInt(identity.Details.influence_limit, 10);
 
-    const url = 'draft/session/' + sessionId + '/faction/' + faction.code + '/withInfluence/' + remaining_influence;
-    
+    const url = `draft/session/${sessionId}/side/${sideId}/faction/${faction.code}/withInfluence/${remaining_influence}/cards`;
+
     var oReq = new XMLHttpRequest();
     oReq.addEventListener('load', load_cards(oReq));
     oReq.open('GET', url);
@@ -298,10 +315,11 @@
       draft_field.firstChild.remove();
     }
 
-    const url = `draft/session/${sessionId}/faction/${faction.code}/withInfluence/${remaining_influence}`;
+    const url = `draft/session/${sessionId}/side/${sideId}/faction/${faction.code}/withInfluence/${remaining_influence}/cards`;
+
     var oReq = new XMLHttpRequest();
     oReq.addEventListener('load', load_cards(oReq));
-    oReq.open('GET', url);
+    oReq.open('POST', url);
     oReq.send(JSON.stringify(retCards));
 
     return false;
