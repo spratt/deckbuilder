@@ -59,13 +59,18 @@
   }
 
   function choose_packs(event) {
+    // Don't change the URL
+    event.preventDefault();
     const packs = event.target.querySelectorAll("input[type='checkbox']:checked");
-    const url_begin = 'draft/withPacks/';
-    const url_end = '/sides';
+    if (packs.length < 1) {
+      return false;
+    }
 
     packs_div.className += hidden_class;
     removeClass(loading_div, hidden_class);
 
+    const url_begin = 'draft/withPacks/';
+    const url_end = '/sides';
     var url = url_begin;
     var first = true;
     packs.forEach(function(pack) {
@@ -82,9 +87,6 @@
     oReq.addEventListener('load', load_sides(oReq));
     oReq.open('GET', url);
     oReq.send();
-
-    // Don't change the URL
-    event.preventDefault();
     return false;
   }
 
