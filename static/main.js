@@ -1,9 +1,5 @@
 'use strict';
 (function() {
-  const start_checked = [
-    'core2', 'td', 'dad', 'cac', 'hap', 'dtwn', '23s', 'cd', 'oac'
-  ];
-
   var sessionId = null;
   var sideId = null;
   var faction = null;
@@ -11,6 +7,7 @@
   var remaining_influence = null;
   const drafted_cards = new Set();
   const drafted_deck = new Map();
+  var drafted_count = 0;
 
   const neutralRegex = /neutral/i;
 
@@ -29,9 +26,13 @@
   const identities_div = document.getElementById('choose-identity');
   const identities_form = document.getElementById('identities-form');
   const identities_field = document.getElementById('identity-field');
+  const draft_count = document.getElementById('draft-count');
+  const draft_influence = document.getElementById('influence-count');
   const draft_div = document.getElementById('draft-cards');
   const draft_form = document.getElementById('cards-form');
   const draft_field = document.getElementById('cards-field');
+  const deck_div = document.getElementById('card-deck');
+  const deck_text = document.getElementById('deck-export');
   
   const corp_link_id = 'corp-link';
   const corp_link = document.getElementById(corp_link_id);
@@ -39,11 +40,13 @@
   const runner_link = document.getElementById(runner_link_id);
   
   function start() {
-    // Set up the packs choice form
-    var oReq = new XMLHttpRequest();
-    oReq.addEventListener('load', load_packs(oReq));
-    oReq.open('GET', 'data/packs.json');
-    oReq.send();
+    document.getElementById('choose-packs-uncheck').addEventListener('click', function(event) {
+      event.preventDefault();
+      event.target.parentNode.querySelectorAll("input[type='checkbox']:checked").forEach(function(input) {
+        input.checked = false;
+      });
+      return false;
+    });
     packs_form.addEventListener('submit', choose_packs);
     factions_form.addEventListener('submit', choose_faction);
     identities_form.addEventListener('submit', choose_identity);
@@ -51,26 +54,6 @@
     [corp_link, runner_link].forEach(function(link) {
       link.addEventListener('click', choose_side);
     });
-  }
-
-  function load_packs(xhr) {
-    return function() {
-      if (xhr.readyState !== 4 && xhr.status !== 200) {
-        return;
-      }
-      const json = JSON.parse(xhr.responseText);
-      json.forEach(function(pack) {
-        const entry = makeInput('have-packs');
-        entry.setAttribute('value', pack.Code);
-        if (start_checked.includes(pack.Code)) {
-          entry.setAttribute('checked', true);
-        }
-        packs_field.appendChild(entry);
-        packs_field.appendChild(document.createTextNode(pack.Name));
-        packs_field.appendChild(document.createElement('br'));
-      });
-      removeClass(packs_div, hidden_class);
-    };
   }
 
   function choose_packs(event) {
@@ -219,6 +202,14 @@
     };
   }
 
+  function update_influence() {
+    draft_influence.innerHTML = `${remaining_influence}/${identity.Details.influence_limit}`;
+  }
+
+  function update_count() {
+    draft_count.innerHTML = `${drafted_count}/${identity.Details.minimum_deck_size}`;
+  }
+
   function choose_identity(event) {
     event.preventDefault();
     if (sessionId === null) {
@@ -232,6 +223,7 @@
     identities_div.className += hidden_class;
     identity = JSON.parse(identities_chosen[0].value);
     remaining_influence = parseInt(identity.Details.influence_limit, 10);
+    deck_text.value += `${identity.Title}\n`;
 
     const url = `draft/session/${sessionId}/side/${sideId}/faction/${faction.code}/withInfluence/${remaining_influence}/cards`;
 
@@ -256,25 +248,31 @@
         draft_field.appendChild(entry);
         draft_field.appendChild(document.createTextNode(card.Title));
         draft_field.appendChild(document.createElement('br'));
-        const img = document.createElement('img');
-        img.setAttribute('alt', card.Text);
-        if ('ImageUrl' in card && card.ImageUrl !== '') {
-          img.setAttribute('src', card.ImageUrl);
-          if ('AltImageUrl' in card && card.AltImageUrl !== '') {
-            img.addEventListener('error', function(event) {
-              event.target.setAttribute('src', card.AltImageUrl);
-            });
-          }
-        } else if ('AltImageUrl' in card && card.AltImageUrl !== '') {
-          img.setAttribute('src', card.AltImageUrl);
-        } else {
-          console.error('No image url to set for card', card);
-        }
-        draft_field.appendChild(img);
+        draft_field.appendChild(card_img(card));
         draft_field.appendChild(document.createElement('br'));
       });
+      update_influence();
+      update_count();
       removeClass(draft_div, hidden_class);
     };
+  }
+
+  function card_img(card) {
+    const img = document.createElement('img');
+    img.setAttribute('alt', card.Text);
+    if ('ImageUrl' in card && card.ImageUrl !== '') {
+      img.setAttribute('src', card.ImageUrl);
+      if ('AltImageUrl' in card && card.AltImageUrl !== '') {
+        img.addEventListener('error', function(event) {
+          event.target.setAttribute('src', card.AltImageUrl);
+        });
+      }
+    } else if ('AltImageUrl' in card && card.AltImageUrl !== '') {
+      img.setAttribute('src', card.AltImageUrl);
+    } else {
+      console.error('No image url to set for card', card);
+    }
+    return img;
   }
 
   function choose_card(event) {
@@ -288,6 +286,7 @@
       return false;
     }
     draft_div.className += hidden_class;
+    removeClass(deck_div, hidden_class);
 
     const all_cards = event.target.querySelectorAll("input[type='radio']");
     const retCards = [];
@@ -295,13 +294,13 @@
       const ccq = JSON.parse(card_elmnt.value);
       const card = JSON.parse(card_elmnt.attributes.getNamedItem('data').value);
       if (card_elmnt.checked) {
-        if (ccq.Faction !== faction) {
+        add_drafted_card(card, ccq);
+        ccq.Quantity -= 1;
+        if (ccq.Quantity > 0) {
+          retCards.push(ccq);
+        }
+        if (ccq.Faction !== faction.code) {
           remaining_influence -= parseInt(card.Details.faction_cost, 10);
-          ccq.Quantity -= 1;
-          if (ccq.Quantity > 0) {
-            retCards.push(ccq);
-          }
-          add_drafted_card(card, ccq);
         }
       } else {
         retCards.push(ccq);
@@ -325,13 +324,27 @@
     return false;
   }
 
-  function add_drafted_card(card) {
+  function add_drafted_card(card, ccq) {
+    drafted_count += 1;
     drafted_cards.add(card);
     if (drafted_deck.has(card.Code)) {
       const quantity = drafted_deck.get(card.Code);
       drafted_deck.set(card.Code, quantity + 1);
+      var new_text = '';
+      deck_text.value.split('\n').forEach(function(line) {
+        if (line.endsWith(card.Title)) {
+          const new_count = 1 + parseInt(line[0], 10);
+          new_text += `${new_count}x ${card.Title}\n`;
+        } else {
+          new_text += line + '\n';
+        }
+      });
+      deck_text.value = new_text;
     } else {
       drafted_deck.set(card.Code, 1);
+      deck_div.appendChild(card_img(card));
+      deck_div.appendChild(document.createElement('br'));
+      deck_text.value += `1x ${card.Title}\n`;
     }
   }
   

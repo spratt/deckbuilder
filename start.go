@@ -152,7 +152,6 @@ func getSides(w http.ResponseWriter, r *http.Request) {
 	}
 	for factionId, _ := range factionSet {
 		if faction, hasKey := factions[factionId]; hasKey {
-			log.Println("Adding faction", factionId)
 			c.Do("SADD", SideFactionsKey(sessionId, faction.SideCode), factionId)
 			c.Do("DEL", FactionKey(sessionId, factionId))
 		} else {
@@ -353,8 +352,8 @@ func draft(w http.ResponseWriter, r *http.Request) {
 
 	// return retCards
 	for _, retCard := range retCards {
-		card, hasCard := cards[retCard.Code]
-		if hasCard == false || isValidCardCodeQuantity(retCard, card) == false {
+		if card, hasCard := cards[retCard.Code]; hasCard == false ||
+			isValidCardCodeQuantity(retCard, card) == false {
 			// log the issue and move on
 			log.Println("Tried to return invalid card", retCard)
 			continue
@@ -365,7 +364,11 @@ func draft(w http.ResponseWriter, r *http.Request) {
 			log.Println("Error while marshalling retCard", retCard)
 			continue
 		}
-		c.Do("SADD", FactionKey(sessionId, card.Details["faction"]), ccqBytes)
+		ccq := string(ccqBytes[:])
+		factionKey := FactionKey(sessionId, retCard.Faction)
+		log.Println("====================> SADD", factionKey)
+		log.Println("                    \\", ccq)
+		c.Do("SADD", factionKey, ccq)
 	}
 	
 	// draw reasonable cards for this faction from the pool in redis
@@ -381,7 +384,7 @@ func draft(w http.ResponseWriter, r *http.Request) {
 			faction := string(factionBytes.([]byte)[:])
 			for j := 0; j < maxTries; j++ {
 				cardJson, err := c.Do("SPOP", FactionKey(sessionId, faction))
-				if err != nil {
+				if err != nil || cardJson == nil {
 					log.Println("Couldn't pop a faction", err)
 					break
 				}

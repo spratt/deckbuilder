@@ -93,6 +93,11 @@ textarea {
    Author's custom styles
    ========================================================================== */
 
+textarea {
+    height: 40em;
+    width: 40em;
+}
+
 footer {
     padding: 10em 0 10em 0;
     font-size: 80%;

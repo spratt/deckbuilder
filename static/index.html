@@ -23,18 +23,101 @@
     <p class="browserupgrade">You are using an <strong>outdated</strong> browser. Please <a href="https://browsehappy.com/">upgrade your browser</a> to improve your experience and security.</p>
   <![endif]-->
   <section>
-    <h1>Android: Netrunner Deckbuilder</h1>
+    <h1>Android: Netrunner Virtual Draft</h1>
     <p>
       This is a guided deckbuilder for the Android: Netrunner card
       game.
     </p>
     <div id="loading" class="hidden">Loading...</div>
-    <div id="choose-packs" class="hidden">
+    <div id="choose-packs">
       The first step is to tell me which packs you have:
       <form id="packs-form" action="#">
         <fieldset id="packs-field">
           <legend>Which packs do you have?</legend>
-        </fieldset> 
+          <button id="choose-packs-uncheck">Uncheck All</button>
+          
+          <h3>Core Sets</h3>
+          <input name="have-packs" value="core" type="checkbox">Core Set<br>
+          <input name="have-packs" value="core2" checked="true" type="checkbox">Revised Core Set<br>
+
+          <h3>Deluxe Expansions</h3>
+          <input name="have-packs" value="cac" checked="true" type="checkbox">Creation and Control<br>
+          <input name="have-packs" value="hap" checked="true" type="checkbox">Honor and Profit<br>
+          <input name="have-packs" value="oac" checked="true" type="checkbox">Order and Chaos<br>
+          <input name="have-packs" value="dad" checked="true" type="checkbox">Data and Destiny<br>
+          <input name="have-packs" value="rar" type="checkbox">Reign and Reverie<br>
+
+          <h3>Campaign Expansions</h3>
+          <input name="have-packs" value="td" checked="true" type="checkbox">Terminal Directive<br>
+
+          <h3>Data Packs</h3>
+          <h4>Genesis Cycle</h4>
+          <input name="have-packs" value="wla" type="checkbox">What Lies Ahead<br>
+          <input name="have-packs" value="ta" type="checkbox">Trace Amount<br>
+          <input name="have-packs" value="ce" type="checkbox">Cyber Exodus<br>
+          <input name="have-packs" value="asis" type="checkbox">A Study in Static<br>
+          <input name="have-packs" value="hs" type="checkbox">Humanity's Shadow<br>
+          <input name="have-packs" value="fp" type="checkbox">Future Proof<br>
+
+          <h4>Spin Cycle</h4>
+          <input name="have-packs" value="om" type="checkbox">Opening Moves<br>
+          <input name="have-packs" value="st" type="checkbox">Second Thoughts<br>
+          <input name="have-packs" value="mt" type="checkbox">Mala Tempora<br>
+          <input name="have-packs" value="tc" type="checkbox">True Colors<br>
+          <input name="have-packs" value="dt" type="checkbox">Double Time<br>
+          <input name="have-packs" value="fal" type="checkbox">Fear and Loathing<br>
+
+          <h4>Lunar Cycle</h4>
+          <input name="have-packs" value="up" type="checkbox">Upstalk<br>
+          <input name="have-packs" value="tsb" type="checkbox">The Spaces Between<br>
+          <input name="have-packs" value="fc" type="checkbox">First Contact<br>
+          <input name="have-packs" value="uao" type="checkbox">Up and Over<br>
+          <input name="have-packs" value="atr" type="checkbox">All That Remains<br>
+          <input name="have-packs" value="ts" type="checkbox">The Source<br>
+
+          <h4>SanSan Cycle</h4>
+          <input name="have-packs" value="val" checked="true" type="checkbox">The Valley<br>
+          <input name="have-packs" value="bb" type="checkbox">Breaker Bay<br>
+          <input name="have-packs" value="cc" type="checkbox">Chrome City<br>
+          <input name="have-packs" value="uw" type="checkbox">The Underway<br>
+          <input name="have-packs" value="oh" checked="true" type="checkbox">Old Hollywood<br>
+          <input name="have-packs" value="uot" type="checkbox">The Universe of Tomorrow<br>
+
+          <h4>Mumbad Cycle</h4>
+          <input name="have-packs" value="kg" type="checkbox">Kala Ghoda<br>
+          <input name="have-packs" value="bf" type="checkbox">Business First<br>
+          <input name="have-packs" value="dag" type="checkbox">Democracy and Dogma<br>
+          <input name="have-packs" value="si" type="checkbox">Salsette Island<br>
+          <input name="have-packs" value="tlm" checked="true" type="checkbox">The Liberated Mind<br>
+          <input name="have-packs" value="ftm" checked="true" type="checkbox">Fear the Masses<br>
+
+          <h4>Flashpoint Cycle</h4>
+          <input name="have-packs" value="23s" checked="true" type="checkbox">23 Seconds<br>
+          <input name="have-packs" value="bm" checked="true" type="checkbox">Blood Money<br>
+          <input name="have-packs" value="es" checked="true" type="checkbox">Escalation<br>
+          <input name="have-packs" value="in" checked="true" type="checkbox">Intervention<br>
+          <input name="have-packs" value="ml" type="checkbox">Martial Law<br>
+          <input name="have-packs" value="qu" type="checkbox">Quorum<br>
+
+          <h4>Red Sand Cycle</h4>
+          <input name="have-packs" value="dc" type="checkbox">Daedalus Complex<br>
+          <input name="have-packs" value="so" checked="true" type="checkbox">Station One<br>
+          <input name="have-packs" value="eas" checked="true" type="checkbox">Earth's Scion<br>
+          <input name="have-packs" value="baw" checked="true" type="checkbox">Blood and Water<br>
+          <input name="have-packs" value="fm" type="checkbox">Free Mars<br>
+          <input name="have-packs" value="cd" checked="true" type="checkbox">Crimson Dust<br>
+
+          <h4>Kitara Cycle</h4>
+          <input name="have-packs" value="ss" type="checkbox">Sovereign Sight<br>
+          <input name="have-packs" value="dtwn" checked="true" type="checkbox">Down the White Nile<br>
+          <input name="have-packs" value="cotc" checked="true" type="checkbox">Council of the Crest<br>
+          <input name="have-packs" value="tdatd" type="checkbox">The Devil and the Dragon<br>
+          <input name="have-packs" value="win" checked="true" type="checkbox">Whispers in Nalubaale<br>
+          <input name="have-packs" value="ka" type="checkbox">Kampala Ascendent<br>
+
+          <h3>Draft Packs</h3>
+          <input name="have-packs" value="draft" type="checkbox">Draft<br>
+        </fieldset>
         <input id="choose-packs-submit" type="submit" value="Continue ->" />
       </form>
     </div>
@@ -62,12 +145,20 @@
       </form>
     </div>
     <div id="draft-cards" class="hidden">
+      <p>
+        Cards drafted: <span id="draft-count"></span><br />
+        Influence: <span id="influence-count"></span><br />
+      </p>
       <form id="cards-form" action="#">
         Which card do you want?
         <fieldset id="cards-field">
         </fieldset> 
         <input id="choose-card-submit" type="submit" value="Continue ->" />
       </form>
+    </div>
+    <div id="card-deck" class="hidden">
+      <h3>Your Deck So Far</h3>
+      <p><textarea id="deck-export" readonly></textarea></p>
     </div>
   </section>
   <footer>

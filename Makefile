@@ -12,5 +12,9 @@ deckbuilder:
 redis:
 	heroku redis:cli -a anrdraft -c anrdraft
 
+push:
+	git push origin master
+	git push heroku master
+
 clean:
 	rm -f deckbuilder
