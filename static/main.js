@@ -8,6 +8,7 @@
   const drafted_cards = new Set();
   const drafted_deck = new Map();
   var drafted_count = 0;
+  var agenda_points = 0;
 
   const neutralRegex = /neutral/i;
 
@@ -27,6 +28,7 @@
   const identities_form = document.getElementById('identities-form');
   const identities_field = document.getElementById('identity-field');
   const draft_count = document.getElementById('draft-count');
+  const agenda_count = document.getElementById('agenda-count');
   const draft_influence = document.getElementById('influence-count');
   const draft_div = document.getElementById('draft-cards');
   const draft_form = document.getElementById('cards-form');
@@ -112,6 +114,9 @@
 
     sides_div.className += hidden_class;
     removeClass(loading_div, hidden_class);
+    if (sideId == sideCorp) {
+      removeClass(document.getElementById('corp-stats'), hidden_class);
+    }
 
     const url = `draft/session/${sessionId}/side/${sideId}/factions`;
 
@@ -210,6 +215,28 @@
     draft_count.innerHTML = `${drafted_count}/${identity.Details.minimum_deck_size}`;
   }
 
+  function update_agendas() {
+    const deck_size = Math.max(drafted_count, identity.Details.minimum_deck_size);
+    const req_points = required_agenda_points(deck_size);
+    agenda_count.innerHTML = `${agenda_points}/${req_points.min}`;
+  }
+
+  function required_agenda_points(deck_size) {
+    if (40 <= deck_size && deck_size <= 44) {
+      return {min: 18, max: 19};
+    } else if (45 <= deck_size && deck_size <= 49) {
+      return {min: 20, max: 21};
+    } else if (50 <= deck_size && deck_size <= 54) {
+      return {min: 22, max: 23};
+    } else if (deck_size >= 55) {
+      const extra = Math.floor((deck_size - 55) / 5);
+      return {min: 22 + extra, max: 23 + extra};
+    } else {
+      console.error(`Invalid deck size: ${deck_size}`);
+      return {min: 18, max: 19};
+    }
+  }
+
   function choose_identity(event) {
     event.preventDefault();
     if (sessionId === null) {
@@ -253,6 +280,9 @@
       });
       update_influence();
       update_count();
+      if (sideId == sideCorp) {
+        update_agendas();
+      }
       removeClass(draft_div, hidden_class);
     };
   }
@@ -302,13 +332,13 @@
         if (ccq.Faction !== faction.code) {
           remaining_influence -= parseInt(card.Details.faction_cost, 10);
         }
+        if (card.Types.includes('agenda')) {
+          agenda_points += parseInt(card.Details.agenda_points, 10);
+        }
       } else {
         retCards.push(ccq);
       }
     });
-    console.log('Returning cards', retCards);
-    console.log('Cards in deck', drafted_cards);
-    console.log('Deck', drafted_deck);
 
     while (draft_field.firstChild) {
       draft_field.firstChild.remove();
@@ -332,6 +362,7 @@
       drafted_deck.set(card.Code, quantity + 1);
       var new_text = '';
       deck_text.value.split('\n').forEach(function(line) {
+        if (line.length === 0) return;
         if (line.endsWith(card.Title)) {
           const new_count = 1 + parseInt(line[0], 10);
           new_text += `${new_count}x ${card.Title}\n`;
