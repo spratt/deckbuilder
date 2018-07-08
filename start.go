@@ -210,9 +210,7 @@ func getFactions(w http.ResponseWriter, r *http.Request) {
 	}
 	factionsRet := []cardlib.Faction{}
 	for _, factionId := range factionsForSide {
-		log.Println("Found faction", factionId)
 		if faction, hasKey := factions[factionId]; hasKey {
-			log.Println("Found faction object", factionId)
 			factionsRet = append(factionsRet, faction)
 		} else {
 			log.Println("faction object not found for factionId", factionId)
@@ -366,8 +364,6 @@ func draft(w http.ResponseWriter, r *http.Request) {
 		}
 		ccq := string(ccqBytes[:])
 		factionKey := FactionKey(sessionId, retCard.Faction)
-		log.Println("====================> SADD", factionKey)
-		log.Println("                    \\", ccq)
 		c.Do("SADD", factionKey, ccq)
 	}
 	
